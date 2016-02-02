@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'rake'
 require 'bundler'
-Bundler::GemHelper.install_tasks :name => 'mongo_session_store-rails4'
+Bundler::GemHelper.install_tasks name: 'mongoid_session_store'
 
 def run_with_output(command)
   puts "Running: #{command}"
@@ -11,7 +11,7 @@ end
 def set_versions(rails_vers, orm)
   success = true
   unless File.exists?("Gemfile_Rails_#{rails_vers}_#{orm}_#{RUBY_VERSION}.lock")
-    success &&= run_with_output("export RAILS_VERS=#{rails_vers}; export MONGO_SESSION_STORE_ORM=#{orm}; bundle update")
+    success &&= run_with_output("export RAILS_VERS=#{rails_vers}; export MONGOID_SESSION_STORE_ORM=#{orm}; bundle update")
     success &&= run_with_output("cp Gemfile.lock Gemfile_Rails_#{rails_vers}_#{orm}_#{RUBY_VERSION}.lock")
   else
     success &&= run_with_output("rm Gemfile.lock")
@@ -20,12 +20,12 @@ def set_versions(rails_vers, orm)
   success
 end
 
-@rails_versions = ['3.1', '3.2', '4.0', '4.1', '4.2']
-@orms = ['mongo_mapper', 'mongoid', 'mongo']
+@rails_versions = ['4.2']
+@orms = ['mongoid']
 
 task :default => :test_all
 
-desc 'Test each session store against Rails 3.1, 3.2, 4.0, 4.1, and 4.2'
+desc 'Test each session store against Rails 4.2'
 task :test_all do
   # inspired by http://pivotallabs.com/users/jdean/blog/articles/1728-testing-your-gem-against-multiple-rubies-and-rails-versions-with-rvm
 
@@ -52,7 +52,7 @@ task :test_all do
     @orms.each do |orm|
       success = set_versions(rails_version, orm)
 
-      unless success && run_with_output("export RAILS_VERS=#{rails_version}; export MONGO_SESSION_STORE_ORM=#{orm}; bundle exec rspec spec")
+      unless success && run_with_output("export RAILS_VERS=#{rails_version}; export MONGOID_SESSION_STORE_ORM=#{orm}; bundle exec rspec spec")
         @failed_suites << "Rails #{rails_version} / #{orm}"
       end
     end
@@ -80,7 +80,7 @@ end
     desc "Test against #{rails_version} with #{orm}"
     task :"test_#{rails_version.gsub('.', '')}_#{orm}" do
       set_versions(rails_version, orm)
-      success = run_with_output("export RAILS_VERS=#{rails_version}; export MONGO_SESSION_STORE_ORM=#{orm}; bundle exec rspec spec")
+      success = run_with_output("export RAILS_VERS=#{rails_version}; export MONGOID_SESSION_STORE_ORM=#{orm}; bundle exec rspec spec")
       exit(1) unless success
     end
 
