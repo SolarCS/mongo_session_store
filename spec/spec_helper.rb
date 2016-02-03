@@ -1,5 +1,5 @@
-ENV["MONGO_SESSION_STORE_ORM"] ||= "mongo_mapper"
-ENV["RAILS_ENV"] = "test"
+ENV['MONGOID_SESSION_STORE_ORM'] ||= 'mongoid'
+ENV['RAILS_ENV'] = 'test'
 
 require 'bundler/setup'
 $:.unshift File.dirname(__FILE__)

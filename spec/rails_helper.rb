@@ -3,17 +3,10 @@ require 'rails'
 
 rails_version = Rails.version[/^\d\.\d/]
 require "rails_#{rails_version}_app/config/environment"
-
 require 'rspec/rails'
 
 def db
-  if defined?(Mongoid)
-    MongoidStore::Session.mongo_session
-  elsif defined?(MongoMapper)
-    MongoMapper.database
-  elsif defined?(Mongo)
-    Mongo::Connection.new[database_name]
-  end
+  MongoidSessionStore::Session.collection.database
 end
 
 def database_name
@@ -37,11 +30,9 @@ RSpec.configure do |config|
   end
 end
 
-puts "Testing #{ENV["MONGO_SESSION_STORE_ORM"]}_store on Rails #{Rails.version}..."
+puts "Testing #{ENV["MONGOID_SESSION_STORE_ORM"]}_store on Rails #{Rails.version}..."
 
-case ENV["MONGO_SESSION_STORE_ORM"]
-when "mongo_mapper"
-  puts "MongoMapper version: #{MongoMapper::Version}"
-when "mongoid"
+case ENV['MONGOID_SESSION_STORE_ORM']
+when 'mongoid'
   puts "Mongoid version: #{Mongoid::VERSION}"
 end
