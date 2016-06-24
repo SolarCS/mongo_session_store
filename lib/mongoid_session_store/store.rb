@@ -9,7 +9,7 @@ module MongoidSessionStore
   private
 
     def generate_sid
-      BSON::ObjectId.new.to_s
+      SecureRandom.hex(32)
     end
 
     def get_session(env, sid)
