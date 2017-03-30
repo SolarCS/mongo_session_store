@@ -7,7 +7,7 @@ describe Devise::SessionsController, type: :request do
        'user[password]'              => 'secret',
        'user[password_confirmation]' => 'secret'
     }
-    post '/users', post_data
+    post '/users', params: post_data
   end
 
   def login
@@ -16,7 +16,7 @@ describe Devise::SessionsController, type: :request do
        'user[password]'              => 'secret',
        'user[password_confirmation]' => 'secret'
     }
-    post '/users/sign_in', post_data
+    post '/users/sign_in', params: post_data
   end
 
   def logout
@@ -54,7 +54,7 @@ describe Devise::SessionsController, type: :request do
     logout
     expect(response.status).to eq 302
     i_should_not_be_logged_in
-    expect(response.body.squish).to match /Signed out successfully/
+    expect(response.body.squish).to match /You are logged out/
   end
 
   it "allows user login" do

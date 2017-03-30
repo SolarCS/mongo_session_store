@@ -1,13 +1,13 @@
 development:
   clients:
     default:
-      database: rails412_app_development
+      database: rails50_app_development
       hosts:
         - 127.0.0.1:27017
 
 test:
   clients:
     default:
-      database: rails412_app_test
+      database: rails50_app_test
       hosts:
         - 127.0.0.1:27017

@@ -22,6 +22,8 @@ Mongoid.configure do |config|
 end
 
 RUNS = 2000
+SESSION_OPTIONS_KEY = MongoidStore::SESSION_OPTIONS_KEY
+SESSION_RECORD_KEY = MongoidStore::SESSION_RECORD_KEY
 
 def benchmark(test_name, &block)
   time = Benchmark.realtime do
@@ -36,7 +38,7 @@ def benchmark_store(store)
   collection = MongoidSessionStore::Session.collection
   collection.delete_many
 
-  large_session =  {
+  large_session = {
     :something => "not nothing",
     :left => "not right",
     :welcome => "not despised",
@@ -57,29 +59,28 @@ def benchmark_store(store)
   ids = []
 
   env = {
-    'rack.session'               => large_session,
-    'rack.session.options'       => { :id => store.send(:generate_sid) }
+    SESSION_RECORD_KEY => large_session,
+    SESSION_OPTIONS_KEY => { :id => store.send(:generate_sid) }
   }
   benchmark "session save" do
     id = store.send(:generate_sid)
     ids << id
-    store.send(:set_session, env.merge({'rack.session.options' => { :id => id }}), id, env['rack.session'])
-    # store.send(:commit_session, env.merge({'rack.session.options' => { :id => ids.last }}), 200, {}, [])
+    request = ActionDispatch::Request.new(env.merge(SESSION_OPTIONS_KEY => { id: id }))
+    store.send(:write_session, request, id, env[SESSION_RECORD_KEY], {})
   end
 
   ids.shuffle!
 
   env = {
-    'rack.request.cookie_string' => "",
-    'HTTP_COOKIE'                => "",
-    'rack.request.cookie_hash'   => { '_session_id' => MongoidSessionStore::Session.last._id }
+    Rack::RACK_REQUEST_COOKIE_STRING => '',
+    Rack::HTTP_COOKIE                => '',
+    SESSION_RECORD_KEY => large_session,
+    SESSION_OPTIONS_KEY => { :id => store.send(:generate_sid) }
   }
   benchmark "session load" do
     id = ids.pop
-    local_env = env.merge({'rack.request.cookie_hash'   => { '_session_id' => id }})
-    # store.send(:prepare_session, local_env)
-    sid, data = store.send(:get_session, local_env, id)
-    # something = local_env['rack.session']["something"] # trigger the load
+    request = ActionDispatch::Request.new(env.merge({ Rack::RACK_REQUEST_COOKIE_HASH => { 'session_id' => id } }))
+    sid, data = store.send(:find_session, request, id)
     raise data.inspect unless data[:something] == "not nothing" && data[:a_bunch_of_floats_in_embedded_docs][0] == {:float_a => 3.141, :float_b => -1.1}
   end
 

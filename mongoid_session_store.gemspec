@@ -11,7 +11,6 @@ Gem::Specification.new do |s|
   s.homepage         = 'http://github.com/SolarCS/mongoid_session_store'
   s.license          = 'MIT'
   s.require_paths    = ['lib']
-  s.rubygems_version = '1.3.7'
   s.summary          = 'Mongoid session store for Rails'
-  s.add_dependency 'actionpack', '>= 3.1'
+  s.add_dependency 'actionpack', '>= 5.0.2'
 end

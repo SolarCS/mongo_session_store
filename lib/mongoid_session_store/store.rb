@@ -3,60 +3,70 @@ require 'mongoid_session_store/session'
 
 module MongoidSessionStore
   class Store < ActionDispatch::Session::AbstractStore
-    SESSION_RECORD_KEY = 'rack.session.record'.freeze
-    SESSION_OPTIONS_KEY = Rack::Session::Abstract::ENV_SESSION_OPTIONS_KEY
+    # The class used for session storage. Defaults to MongoidSessionStore::Session
+    cattr_accessor :session_class
+    self.session_class = MongoidSessionStore::Session
+
+    SESSION_RECORD_KEY = 'rack.session.record'
+    SESSION_OPTIONS_KEY = Rack::RACK_SESSION_OPTIONS
 
   private
 
-    def generate_sid
-      SecureRandom.hex(32)
+    # Rack: If nil is provided as the session id, generation of a new valid id
+    # should occur within.
+    #
+    # Returns [session_id, session].
+    def find_session(request, sid)
+      record = get_session_record(request, sid)
+      record.session_id = generate_sid if record.new_record?
+      [record.session_id, record.data]
     end
 
-    def get_session(env, sid)
-      record = find_or_initialize_session(sid)
-      env[SESSION_RECORD_KEY] = record
-      [record._id, unpack(record.data)]
+    # Rack: Returns the session id if the session was saved successfully, or
+    # false if the session could not be saved.
+    def write_session(request, sid, session_data, options)
+      session = get_session_record(request, sid)
+      session.data = session_data
+      session.save ? session.session_id : false
     end
 
-    def set_session(env, id, session_data, options = {})
-      record = get_session_record(env, id)
-      # Rack spec dictates that set_session should return true or false
-      # depending on whether or not the session was saved or not.
-      # However, ActionPack seems to want a session id instead.
-      record.update_attributes(id: id, data: pack(session_data)) ? record.id : false
+    # Rack: Returns a new session id or nil if options[:drop].
+    def delete_session(request, _sid, options)
+      old_record = destroy_session(request)
+      return if options[:drop]
+
+      generate_sid.tap do |new_sid|
+        if options[:renew]
+          request.env[SESSION_RECORD_KEY] =
+            @@session_class.create(session_id: new_sid, data: old_record&.data)
+        end
+      end
     end
 
-    def find_or_initialize_session(id)
-      id && MongoidSessionStore::Session.where(_id: id).first || MongoidSessionStore::Session.new
+    # Internal: Deletes the record for the current session and removes it from
+    # the request env.
+    #
+    # Returns the old record, if one existed.
+    def destroy_session(request)
+      @@session_class.find_by_session_id(current_session_id(request)).tap do |record|
+        request.env[SESSION_RECORD_KEY] = nil
+        record&.destroy
+      end
     end
 
-    def get_session_record(env, id)
-      if env[SESSION_OPTIONS_KEY][:id] && env[SESSION_RECORD_KEY]
-        env[SESSION_RECORD_KEY]
+    # Internal: Finds the record for the current session (or initializes a
+    # record if none exists) and sets it in the request env.
+    def get_session_record(request, sid)
+      model = @@session_class.find_by_session_id(sid) ||
+        @@session_class.new(session_id: sid || generate_sid)
+
+      if request.env[SESSION_OPTIONS_KEY][:id].nil?
+        request.env[SESSION_RECORD_KEY] = model
       else
-        env[SESSION_RECORD_KEY] = find_or_initialize_session(id)
+        request.env[SESSION_RECORD_KEY] ||= model
       end
-    end
 
-    def destroy_session(env, session_id, options)
-      destroy(env)
-      generate_sid unless options[:drop]
-    end
-
-    def destroy(env)
-      if sid = current_session_id(env)
-        get_session_record(env, sid).destroy
-        env[SESSION_RECORD_KEY] = nil
-      end
-    end
-
-    def pack(data)
-      MongoidSessionStore::Session.binary_data(data)
-    end
-
-    def unpack(packed)
-      return nil unless packed
-      Marshal.load(packed.data)
+      model
     end
   end
 end
@@ -66,4 +76,5 @@ module ActionDispatch
     MongoidStore = MongoidSessionStore::Store
   end
 end
+
 MongoidStore = MongoidSessionStore::Store

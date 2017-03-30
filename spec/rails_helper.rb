@@ -18,21 +18,11 @@ def drop_collections_in(database)
 end
 
 RSpec.configure do |config|
-  config.before :all do
-    unless User.table_exists?
-      load Rails.root.join('db', 'schema.rb')
-    end
-  end
-
   config.before :each do
     drop_collections_in(db)
     User.delete_all
   end
 end
 
-puts "Testing #{ENV["MONGOID_SESSION_STORE_ORM"]}_store on Rails #{Rails.version}..."
-
-case ENV['MONGOID_SESSION_STORE_ORM']
-when 'mongoid'
-  puts "Mongoid version: #{Mongoid::VERSION}"
-end
+puts "Testing mongoid_store on Rails #{Rails.version}..."
+puts "Mongoid version: #{Mongoid::VERSION}"

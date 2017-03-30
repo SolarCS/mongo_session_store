@@ -8,27 +8,24 @@ def run_with_output(command)
   system(command)
 end
 
-def set_versions(rails_vers, orm)
+def set_versions(rails_version)
   success = true
-  unless File.exists?("Gemfile_Rails_#{rails_vers}_#{orm}_#{RUBY_VERSION}.lock")
-    success &&= run_with_output("export RAILS_VERS=#{rails_vers}; export MONGOID_SESSION_STORE_ORM=#{orm}; bundle update")
-    success &&= run_with_output("cp Gemfile.lock Gemfile_Rails_#{rails_vers}_#{orm}_#{RUBY_VERSION}.lock")
+  unless File.exists?("Gemfile_Rails_#{rails_version}_mongoid_#{RUBY_VERSION}.lock")
+    success &&= run_with_output("export RAILS_VERS=#{rails_version}; bundle update")
+    success &&= run_with_output("cp Gemfile.lock Gemfile_Rails_#{rails_version}_mongoid_#{RUBY_VERSION}.lock")
   else
     success &&= run_with_output("rm Gemfile.lock")
-    success &&= run_with_output("cp Gemfile_Rails_#{rails_vers}_#{orm}_#{RUBY_VERSION}.lock Gemfile.lock")
+    success &&= run_with_output("cp Gemfile_Rails_#{rails_version}_mongoid_#{RUBY_VERSION}.lock Gemfile.lock")
   end
   success
 end
 
-@rails_versions = ['4.2']
-@orms = ['mongoid']
+@rails_versions = ['5.0']
 
 task :default => :test_all
 
-desc 'Test each session store against Rails 4.2'
+desc 'Test each session store against Rails'
 task :test_all do
-  # inspired by http://pivotallabs.com/users/jdean/blog/articles/1728-testing-your-gem-against-multiple-rubies-and-rails-versions-with-rvm
-
   # Wait for mongod to start on Travis.
   # From the Mongo Ruby Driver gem.
   if ENV['TRAVIS']
@@ -49,12 +46,10 @@ task :test_all do
   @failed_suites = []
 
   @rails_versions.each do |rails_version|
-    @orms.each do |orm|
-      success = set_versions(rails_version, orm)
+    success = set_versions(rails_version)
 
-      unless success && run_with_output("export RAILS_VERS=#{rails_version}; export MONGOID_SESSION_STORE_ORM=#{orm}; bundle exec rspec spec")
-        @failed_suites << "Rails #{rails_version} / #{orm}"
-      end
+    unless success && run_with_output("export RAILS_VERS=#{rails_version}; bundle exec rspec spec")
+      @failed_suites << "Rails #{rails_version} / mongoid"
     end
   end
 
@@ -71,23 +66,21 @@ task :test_all do
 end
 
 @rails_versions.each do |rails_version|
-  @orms.each do |orm|
-    desc "Set Gemfile.lock to #{rails_version} with #{orm}"
-    task :"use_#{rails_version.gsub('.', '')}_#{orm}" do
-      set_versions(rails_version, orm)
-    end
+  desc "Set Gemfile.lock to #{rails_version} with mongoid"
+  task :"use_#{rails_version.gsub('.', '')}_mongoid" do
+    set_versions(rails_version)
+  end
 
-    desc "Test against #{rails_version} with #{orm}"
-    task :"test_#{rails_version.gsub('.', '')}_#{orm}" do
-      set_versions(rails_version, orm)
-      success = run_with_output("export RAILS_VERS=#{rails_version}; export MONGOID_SESSION_STORE_ORM=#{orm}; bundle exec rspec spec")
-      exit(1) unless success
-    end
+  desc "Test against #{rails_version} with mongoid"
+  task :"test_#{rails_version.gsub('.', '')}_mongoid" do
+    set_versions(rails_version)
+    success = run_with_output("export RAILS_VERS=#{rails_version}; bundle exec rspec spec")
+    exit(1) unless success
+  end
 
-    desc "Rebundle for #{rails_version} with #{orm}"
-    task :"rebundle_#{rails_version.gsub('.', '')}_#{orm}" do
-      run_with_output "rm Gemfile_Rails_#{rails_version}_#{orm}_#{RUBY_VERSION}.lock Gemfile.lock"
-      set_versions(rails_version, orm)
-    end
+  desc "Rebundle for #{rails_version} with mongoid"
+  task :"rebundle_#{rails_version.gsub('.', '')}_mongoid" do
+    run_with_output "rm Gemfile_Rails_#{rails_version}_mongoid_#{RUBY_VERSION}.lock Gemfile.lock"
+    set_versions(rails_version)
   end
 end
